@@ -1,4 +1,4 @@
-# Скачиваю и устанавливаю актуальную версию Terraform
+# 1. Скачиваю и устанавливаю актуальную версию Terraform
 ```
 wget https://hashicorp-releases.yandexcloud.net/terraform/1.15.0-rc3/terraform_1.15.0-rc3_linux_amd64.zip
 unzip terraform_1.15.0-rc3_linux_amd64.zip
@@ -76,7 +76,7 @@ terraform init
 
 ![terraform init](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%98%D0%BD%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B8%D1%80%D1%83%D1%8E%20%D0%BF%D1%80%D0%BE%D0%B2%D0%B0%D0%B9%D0%B4%D0%B5%D1%80%D0%B0.png)
 
-### По условиям задачи необходимо развернуть через terraform следующий ресурcы:
+### 2. По условиям задачи необходимо развернуть через terraform следующий ресурcы:
 
 **Сайт. Веб-сервера. Nginx.** 
 
@@ -695,5 +695,59 @@ resource "yandex_compute_instance" "bastion" {
     user-data = "${file("./meta.yaml")}"
   }
 }
+```
 
 **Резервное копирование.**
+
+- Создать snapshot дисков всех ВМ.
+
+- Ограничить время жизни snaphot в неделю.
+
+- Сами snaphot настроить на ежедневное копирование.
+
+```
+#################################################################################################################
+## Snapshot_schedule ##### https://cloud.yandex.ru/ru/docs/compute/operations/snapshot-control/create-schedule ##
+#################################################################################################################
+resource "yandex_compute_snapshot_schedule" "snapshot-diplom" {
+  name = "snapshot-diplom"
+
+  schedule_policy {
+    expression = "30 1 * * *"
+  }
+
+  snapshot_count = 7
+
+  snapshot_spec {
+      description = "Snapshots. Every day at 01:30"
+  }
+
+  disk_ids = ["${yandex_compute_instance.bastion.boot_disk.0.disk_id}", "${yandex_compute_instance.nginx-web-1.boot_disk.0.disk_id}", "${yandex_compute_instance.nginx-web-2.boot_disk.0.disk_id}", "${yandex_compute_instance.zabbix.boot_disk.0.disk_id}", "${yandex_compute_instance.elasticsearch.boot_disk.0.disk_id}", "${yandex_compute_instance.kibana.boot_disk.0.disk_id}"]
+}
+```
+
+### 3. Запуксаю terraform playbook.
+
+```
+terraform init
+terraform plan
+terraform apply
+```
+
+![terraform plan](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform%20plan.png)
+
+При развертывании с помощью terraform появлялась ошибка превышения квоты создания публичных IP, поэтому был добавлен параметр -parallelism=1
+
+```
+terraform apply -auto-approve -parallelism=1
+```
+
+
+![terraform apply](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform%20apply.png)
+
+Проверяю что установилось
+
+![terraform state list](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform%20state%20list.png)
+
+
+
