@@ -408,6 +408,137 @@ nano playbook-filebeat2.yaml
 ```
 nano index.nginx-ubuntu.html
 ```
+```
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дипломная работа по профессии «Системный администратор»</title>
+    <!-- Атрибут href можно оставить, если у вас есть файл стилей. Или удалите строку полностью -->
+    <!-- <link rel="stylesheet" href="./styles/style.css"> -->
+</head>
+<body>
+    <header>
+        <h1>Дипломная работа по профессии<br> «Системный администратор»</h1>
+        <h4>Выполнил: Кирилл Корниенко</h4>
+        <h4>Группа: SYS-52</h4>
+    </header>
+
+    <main>
+        <article>
+            <section>
+                <h3>Дипломная работа состоит из трех частей:</h3>
+                <nav>
+                    <ol>
+                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/README.md">Развертывание виртуальной инфраструктуры</a></li>
+                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/README.md">Установка и настройка Ansible и сервисов</a></li>
+                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/3.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D1%80%D0%B5%D1%81%D1%83%D1%80%D1%81%D0%BE%D0%B2%20%D0%B8%20%D0%B2%D1%8B%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%B7%D0%B0%D0%B4%D0%B0%D1%87/README.md">Финальная проверка всех компонентов</a></li>
+                    </ol>
+                </nav>
+            </section>
+        </article>
+    </main>
+</body>
+</html>
+```
+создаю конфигурационные файлы:
+
+```
+nano elasticsearch.yml
+```
+
+```
+# ======================== Elasticsearch Configuration =========================
+#
+# ---------------------------------- Cluster -----------------------------------
+#
+cluster.name: kirill-diplom
+#
+# ------------------------------------ Node ------------------------------------
+#
+node.name: node-1
+#
+# ----------------------------------- Paths ------------------------------------
+#
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+#
+# ----------------------------------- Memory -----------------------------------
+#
+#bootstrap.memory_lock: true
+#
+# ---------------------------------- Network -----------------------------------
+#
+network.host: 0.0.0.0
+http.port: 9200
+#
+# --------------------------------- Discovery ----------------------------------
+#
+discovery.seed_hosts: ["127.0.0.1"]
+cluster.initial_master_nodes: ["node-1"]
+#
+# ---------------------------------- Security ----------------------------------
+#
+```
+
+```
+nano kibana.yml
+```
+
+```
+server.port: 5601
+server.host: 0.0.0.0
+server.publicBaseUrl: "http://81.26.184.58:5601"   # замените на реальный внешний IP вашей kibana
+
+elasticsearch.hosts: ["http://192.168.10.4:9200"]
+```
+
+```
+nano filebeat.yml
+```
+
+```
+###################### Filebeat Configuration #########################
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+    - /var/log/nginx/error.log
+
+output.elasticsearch:
+  hosts: ["192.168.10.4:9200"]
+  index: "nginx-web-1"
+
+processors:
+  - drop_fields:
+      fields: ["beat", "input_type", "prospector", "input", "host", "agent", "ecs"]
+```
+
+```
+nano filebeat2.yml
+```
+
+```
+###################### Filebeat Configuration #########################
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+    - /var/log/nginx/error.log
+
+output.elasticsearch:
+  hosts: ["192.168.10.4:9200"]
+  index: "nginx-web-2"
+
+processors:
+  - drop_fields:
+      fields: ["beat", "input_type", "prospector", "input", "host", "agent", "ecs"]
+```
+
+
 
 
 
