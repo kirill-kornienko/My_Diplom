@@ -72,3 +72,7 @@ Cоздайте ВМ, разверните на ней Elasticsearch. Устан
 
 Создайте snapshot дисков всех ВМ. Ограничьте время жизни snaphot в неделю. Сами snaphot настройте на ежедневное копирование.
 </details>
+
+### Выполнение работы
+
+На первом этапе устанавливаю и подготавливаю Terraform. С помощью Terraform произвожу [развертывание виртуальных машин](https://github.com/kirill-kornienko/My_Diplom/tree/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform)
