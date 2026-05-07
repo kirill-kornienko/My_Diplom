@@ -46,16 +46,16 @@ elasticsearch
 kibana
 
 [nginx-web:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.189.206"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 
 [zabbix:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.189.206"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 
 [elasticsearch:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.189.206"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 
 [kibana:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.189.206"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 ```
 
 ### Создаю и запускаю Ansible-playbooks для установки и конфигурирования сервисов указанных в задании
