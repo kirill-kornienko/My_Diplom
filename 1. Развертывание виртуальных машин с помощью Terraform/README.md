@@ -91,92 +91,77 @@ terraform init
 - Создать Application load balancer для распределения трафика на веб-сервера, созданные ранее. Указать HTTP router, созданный ранее, задать listener тип auto, порт 80.
 
 ```
-####################
-## Nginx-web-1 #####
-####################
+# ======================== Веб-сервер 1 ========================
 resource "yandex_compute_instance" "nginx-web-1" {
-  name  = "nginx-web-1"
-  hostname = "nginx-web-1"
-  zone  = yandex_vpc_subnet.a-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "nginx-web-1"
+  hostname    = "nginx-web-1"
+  zone        = yandex_vpc_subnet.a-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 2
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.a-subnet-diplom.id}"
-    ipv4 = true
-    ip_address = "192.168.10.3"
-    security_group_ids = [yandex_vpc_security_group.bastion-security-local.id, yandex_vpc_security_group.nginx-web-security.id, yandex_vpc_security_group.filebeat-security.id]
+    subnet_id          = yandex_vpc_subnet.a-subnet-diplom.id
+    ipv4               = true
+    ip_address         = "192.168.10.3"
+    security_group_ids = [yandex_vpc_security_group.internal-ssh.id, yandex_vpc_security_group.nginx-http.id]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
 
-####################
-## Nginx-web-2 #####
-####################
+
+# ======================== Веб-сервер 2 ========================
 resource "yandex_compute_instance" "nginx-web-2" {
-  name  = "nginx-web-2"
-  hostname = "nginx-web-2"
-  zone  = yandex_vpc_subnet.b-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "nginx-web-2"
+  hostname    = "nginx-web-2"
+  zone        = yandex_vpc_subnet.b-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 2
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.b-subnet-diplom.id}"
-    ipv4 = true
-    ip_address = "192.168.20.3"
-    security_group_ids = [yandex_vpc_security_group.bastion-security-local.id, yandex_vpc_security_group.nginx-web-security.id, yandex_vpc_security_group.filebeat-security.id]
+    subnet_id          = yandex_vpc_subnet.b-subnet-diplom.id
+    ipv4               = true
+    ip_address         = "192.168.20.3"
+    security_group_ids = [yandex_vpc_security_group.internal-ssh.id, yandex_vpc_security_group.nginx-http.id]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
 
-#################################################################################################################
-## Target group ##### https://cloud.yandex.ru/ru/docs/application-load-balancer/operations/target-group-create ##
-#################################################################################################################
-resource "yandex_alb_target_group" "nginx-target-group"{
+
+# ======================== Балансировщик ========================
+resource "yandex_alb_target_group" "nginx-target-group" {
   name = "nginx-target-group"
-
   target {
-    subnet_id = "${yandex_vpc_subnet.a-subnet-diplom.id}"
-    ip_address   = "${yandex_compute_instance.nginx-web-1.network_interface.0.ip_address}"
-  } 
-
+    subnet_id  = yandex_vpc_subnet.a-subnet-diplom.id
+    ip_address = yandex_compute_instance.nginx-web-1.network_interface[0].ip_address
+  }
   target {
-    subnet_id = "${yandex_vpc_subnet.b-subnet-diplom.id}"
-    ip_address   = "${yandex_compute_instance.nginx-web-2.network_interface.0.ip_address}"
-  }  
+    subnet_id  = yandex_vpc_subnet.b-subnet-diplom.id
+    ip_address = yandex_compute_instance.nginx-web-2.network_interface[0].ip_address
+  }
 }
 
-###################################################################################################################
-## Backend group ##### https://cloud.yandex.ru/ru/docs/application-load-balancer/operations/backend-group-create ##
-###################################################################################################################
 resource "yandex_alb_backend_group" "nginx-backend-group" {
   name = "nginx-backend-group"
   session_affinity {
@@ -184,30 +169,26 @@ resource "yandex_alb_backend_group" "nginx-backend-group" {
       source_ip = false
     }
   }
-
   http_backend {
-    name                   = "http-backend"
-    weight                 = 1
-    port                   = 80
-    target_group_ids       = ["${yandex_alb_target_group.nginx-target-group.id}"]
+    name             = "http-backend"
+    weight           = 1
+    port             = 80
+    target_group_ids = [yandex_alb_target_group.nginx-target-group.id]
     load_balancing_config {
-      panic_threshold      = 90
-    }    
+      panic_threshold = 90
+    }
     healthcheck {
-      timeout              = "10s"
-      interval             = "2s"
-      healthy_threshold    = 10
-      unhealthy_threshold  = 15 
+      timeout             = "10s"
+      interval            = "2s"
+      healthy_threshold   = 10
+      unhealthy_threshold = 15
       http_healthcheck {
-        path               = "/"
+        path = "/"
       }
     }
   }
 }
 
-###############################################################################################################
-## HTTP router ##### https://cloud.yandex.ru/ru/docs/application-load-balancer/operations/http-router-create ##
-###############################################################################################################
 resource "yandex_alb_http_router" "nginx-tf-router" {
   name   = "nginx-tf-router"
   labels = {
@@ -228,30 +209,24 @@ resource "yandex_alb_virtual_host" "nginx-virtual-host" {
       }
     }
   }
-}    
+}
 
-############################################################################################################################################
-## Application load balancer ##### https://cloud.yandex.com/ru/docs/application-load-balancer/operations/application-load-balancer-create ##
-############################################################################################################################################
 resource "yandex_alb_load_balancer" "nginx-balancer" {
   name        = "nginx-balancer"
-  network_id  = "${yandex_vpc_network.network-diplom.id}"
-
+  network_id  = yandex_vpc_network.network-diplom.id
   allocation_policy {
     location {
-      zone_id   = "${yandex_vpc_subnet.c-subnet-diplom.zone}"
-      subnet_id = yandex_vpc_subnet.c-subnet-diplom.id
+      zone_id   = yandex_vpc_subnet.d-subnet-diplom.zone
+      subnet_id = yandex_vpc_subnet.d-subnet-diplom.id
     }
   }
-
   listener {
     name = "nginx-listener"
     endpoint {
       address {
-        external_ipv4_address {
-        }
+        external_ipv4_address {}
       }
-      ports = [ 80 ]
+      ports = [80]
     }
     http {
       handler {
@@ -260,6 +235,8 @@ resource "yandex_alb_load_balancer" "nginx-balancer" {
     }
   }
 }
+
+
 ```
 
 **Мониторинг. Zabbix. Zabbix-agent.**
@@ -267,39 +244,38 @@ resource "yandex_alb_load_balancer" "nginx-balancer" {
 - Создать ВМ, развернуть на ней Zabbix. На каждую ВМ установить Zabbix Agent, настроить агенты на отправление метрик в Zabbix.
 
 ```
-###############
-## Zabbix #####
-###############
+# ======================== Zabbix ========================
 resource "yandex_compute_instance" "zabbix" {
-  name  = "zabbix"
-  hostname = "zabbix"
-  zone  = yandex_vpc_subnet.c-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "zabbix"
+  hostname    = "zabbix"
+  zone        = yandex_vpc_subnet.d-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 2
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.c-subnet-diplom.id}"
-    nat = true
-    ipv4 = true
-    ip_address = "192.168.30.4"
-    security_group_ids = [yandex_vpc_security_group.bastion-security-local.id, yandex_vpc_security_group.zabbix-security.id]
+    subnet_id          = yandex_vpc_subnet.d-subnet-diplom.id
+    ipv4               = true
+    ip_address         = "192.168.30.4"
+    nat                = true
+    security_group_ids = [
+      yandex_vpc_security_group.internal-ssh.id,
+      yandex_vpc_security_group.nginx-http.id
+    ]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
+
 ```
 
 **Логи. Elasticsearch. Kibana. Filebeat.**
@@ -309,72 +285,63 @@ resource "yandex_compute_instance" "zabbix" {
 - Создать ВМ, развернуть на ней Kibana, сконфигурировать соединение с Elasticsearch.
 
 ```
-######################
-## Elasticsearch #####
-######################
+# ======================== Elasticsearch ========================
 resource "yandex_compute_instance" "elasticsearch" {
-  name  = "elasticsearch"
-  hostname = "elasticsearch"
-  zone  = yandex_vpc_subnet.a-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "elasticsearch"
+  hostname    = "elasticsearch"
+  zone        = yandex_vpc_subnet.a-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 4
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.a-subnet-diplom.id}"
-    ipv4 = true
-    ip_address = "192.168.10.4"
-    security_group_ids = [yandex_vpc_security_group.bastion-security-local.id, yandex_vpc_security_group.elasticsearch-security.id, yandex_vpc_security_group.kibana-security.id, yandex_vpc_security_group.filebeat-security.id]
+    subnet_id          = yandex_vpc_subnet.a-subnet-diplom.id
+    ipv4               = true
+    ip_address         = "192.168.10.4"
+    security_group_ids = [yandex_vpc_security_group.internal-ssh.id]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
 
-###############
-## Kibana #####
-###############
+# ======================== Kibana  ========================
 resource "yandex_compute_instance" "kibana" {
-  name  = "kibana"
-  hostname = "kibana"
-  zone  = yandex_vpc_subnet.c-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "kibana"
+  hostname    = "kibana"
+  zone        = yandex_vpc_subnet.d-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 2
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.c-subnet-diplom.id}"
-    nat = true
-    ipv4 = true
-    ip_address = "192.168.30.5"
-    security_group_ids = [yandex_vpc_security_group.bastion-security-local.id, yandex_vpc_security_group.elasticsearch-security.id, yandex_vpc_security_group.kibana-security.id, yandex_vpc_security_group.filebeat-security.id]
+    subnet_id          = yandex_vpc_subnet.d-subnet-diplom.id
+    ipv4               = true
+    ip_address         = "192.168.30.5"
+    nat                = true
+    security_group_ids = [yandex_vpc_security_group.internal-ssh.id]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
+
 ```
 
 **Сеть**
@@ -391,23 +358,17 @@ resource "yandex_compute_instance" "kibana" {
 
 ```
 
-#################################################################################
-## Network ##### https://cloud.yandex.ru/ru/docs/vpc/operations/network-create ##
-#################################################################################
+# ======================== Сеть и подсети ========================
 resource "yandex_vpc_network" "network-diplom" {
-  name        = "network-diplom"
-  description = "Network diplom"
+  name = "network-diplom"
 }
 
-###########################################################################################################
-## Subnet. Gateway. Route table ###### https://cloud.yandex.ru/ru/docs/vpc/operations/create-nat-gateway ##
-###########################################################################################################
 resource "yandex_vpc_subnet" "a-subnet-diplom" {
   name           = "a-subnet-diplom"
   v4_cidr_blocks = ["192.168.10.0/24"]
   zone           = "ru-central1-a"
   network_id     = yandex_vpc_network.network-diplom.id
-  route_table_id = yandex_vpc_route_table.a-b-subnet-route-table.id
+  route_table_id = yandex_vpc_route_table.gateway-route.id
 }
 
 resource "yandex_vpc_subnet" "b-subnet-diplom" {
@@ -415,34 +376,31 @@ resource "yandex_vpc_subnet" "b-subnet-diplom" {
   v4_cidr_blocks = ["192.168.20.0/24"]
   zone           = "ru-central1-b"
   network_id     = yandex_vpc_network.network-diplom.id
-  route_table_id = yandex_vpc_route_table.a-b-subnet-route-table.id
+  route_table_id = yandex_vpc_route_table.gateway-route.id
 }
 
-resource "yandex_vpc_subnet" "c-subnet-diplom" {
-  name           = "c-subnet-diplom"
+resource "yandex_vpc_subnet" "d-subnet-diplom" {
+  name           = "d-subnet-diplom"
   v4_cidr_blocks = ["192.168.30.0/24"]
-  zone           = "ru-central1-c"
+  zone           = "ru-central1-d"
   network_id     = yandex_vpc_network.network-diplom.id
+  route_table_id = yandex_vpc_route_table.gateway-route.id
 }
-
-resource "yandex_vpc_gateway" "gateway-route-table" {
-  name = "gateway-route-table"
+# ======================== NAT-шлюз и таблица маршрутизации ========================
+resource "yandex_vpc_gateway" "gateway" {
+  name = "gateway"
   shared_egress_gateway {}
 }
 
-resource "yandex_vpc_route_table" "a-b-subnet-route-table" {
-  name           = "a-b-subnet-route-table"
-  network_id     = yandex_vpc_network.network-diplom.id
-
+resource "yandex_vpc_route_table" "gateway-route" {
+  name       = "gateway-route"
+  network_id = yandex_vpc_network.network-diplom.id
   static_route {
     destination_prefix = "0.0.0.0/0"
-    gateway_id         = yandex_vpc_gateway.gateway-route-table.id
+    gateway_id         = yandex_vpc_gateway.gateway.id
   }
 }
-
-########################################################################################
-## Security_groups ##### https://cloud.yandex.ru/ru/docs/vpc/concepts/security-groups ##
-########################################################################################
+# ======================== Группы безопасности ========================
 resource "yandex_vpc_security_group" "bastion-security-local" {
   name        = "bastion-security-local"
   description = "Bastion security for local ip"
@@ -471,40 +429,6 @@ resource "yandex_vpc_security_group" "bastion-security-local" {
   }
 }
 
-resource "yandex_vpc_security_group" "bastion-security" {
-  name        = "bastion-security"
-  description = "Bastion security to connect to bastion"
-  network_id  = yandex_vpc_network.network-diplom.id
-
-  ingress {
-    protocol          = "TCP"
-    description       = "IN to 22 port from any ip"
-    v4_cidr_blocks    = ["0.0.0.0/0"]
-    port              = 22
-  }
-
-  egress {
-    protocol          = "ANY"
-    description       = "OUT from any ip"
-    v4_cidr_blocks    = ["0.0.0.0/0"]
-    from_port         = 0
-    to_port           = 65535
-  }  
-
-  ingress {
-    protocol          = "TCP"
-    description       = "IN to 22 port from local ip"
-    security_group_id = yandex_vpc_security_group.bastion-security-local.id
-    port              = 22
-  }
-
-  egress {
-    protocol          = "TCP"
-    description       = "OUT from 22 port to local ip"
-    security_group_id = yandex_vpc_security_group.bastion-security-local.id
-    port              = 22
-  }
-}
 
 resource "yandex_vpc_security_group" "nginx-web-security" {
   name        = "nginx-web-security"
@@ -661,40 +585,104 @@ resource "yandex_vpc_security_group" "filebeat-security" {
     port           = 5044
   }
 }
+resource "yandex_vpc_security_group" "internal-ssh" {
+  name        = "internal-ssh"
+  description = "SSH between internal subnets"
+  network_id  = yandex_vpc_network.network-diplom.id
 
-################
-## Bastion #####
-################
+  ingress {
+    protocol       = "TCP"
+    description    = "SSH from internal"
+    v4_cidr_blocks = ["192.168.10.0/24", "192.168.20.0/24", "192.168.30.0/24"]
+    port           = 22
+  }
+
+  egress {
+    protocol       = "TCP"
+    description    = "SSH to internal"
+    v4_cidr_blocks = ["192.168.10.0/24", "192.168.20.0/24", "192.168.30.0/24"]
+    port           = 22
+  }
+
+  egress {
+    protocol       = "ANY"
+    description    = "Allow all outbound internet traffic"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "nginx-http" {
+  name        = "nginx-http"
+  description = "Allow HTTP from anywhere"
+  network_id  = yandex_vpc_network.network-diplom.id
+
+  ingress {
+    protocol       = "TCP"
+    description    = "HTTP from anywhere"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 80
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 80
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "yandex_vpc_security_group" "bastion-security" {
+  name        = "bastion-security"
+  description = "Allow SSH from anywhere"
+  network_id  = yandex_vpc_network.network-diplom.id
+
+  ingress {
+    protocol       = "TCP"
+    description    = "SSH from anywhere"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 22
+  }
+
+  egress {
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+
+
+# ======================== Bastion (публичный IP) ========================
 resource "yandex_compute_instance" "bastion" {
-  name  = "bastion"
-  hostname = "bastion"
-  zone  = yandex_vpc_subnet.c-subnet-diplom.zone
-  platform_id     = "standard-v3"
+  name        = "bastion"
+  hostname    = "bastion"
+  zone        = yandex_vpc_subnet.d-subnet-diplom.zone
+  platform_id = "standard-v3"
   resources {
     cores         = 2
     core_fraction = 20
     memory        = 2
   }
-
   boot_disk {
     initialize_params {
-      image_id = "fd8mg6q8ujdpfh58k2bk"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
-
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.c-subnet-diplom.id}"
-    nat = true
-    ipv4 = true
-    ip_address = "192.168.30.3"
+    subnet_id          = yandex_vpc_subnet.d-subnet-diplom.id
+    nat                = true
+    ipv4               = true
+    ip_address         = "192.168.30.3"
     security_group_ids = [yandex_vpc_security_group.bastion-security.id]
   }
-
   metadata = {
-    user-data = "${file("./meta.yaml")}"
+    user-data = file("./meta.yaml")
   }
 }
+
+
 ```
 
 **Резервное копирование.**
@@ -706,24 +694,26 @@ resource "yandex_compute_instance" "bastion" {
 - Сами snaphot настроить на ежедневное копирование.
 
 ```
-#################################################################################################################
-## Snapshot_schedule ##### https://cloud.yandex.ru/ru/docs/compute/operations/snapshot-control/create-schedule ##
-#################################################################################################################
+# ======================== Snapshot schedule ========================
 resource "yandex_compute_snapshot_schedule" "snapshot-diplom" {
   name = "snapshot-diplom"
-
   schedule_policy {
     expression = "30 1 * * *"
   }
-
   snapshot_count = 7
-
   snapshot_spec {
-      description = "Snapshots. Every day at 01:30"
+    description = "Snapshots. Every day at 01:30"
   }
-
-  disk_ids = ["${yandex_compute_instance.bastion.boot_disk.0.disk_id}", "${yandex_compute_instance.nginx-web-1.boot_disk.0.disk_id}", "${yandex_compute_instance.nginx-web-2.boot_disk.0.disk_id}", "${yandex_compute_instance.zabbix.boot_disk.0.disk_id}", "${yandex_compute_instance.elasticsearch.boot_disk.0.disk_id}", "${yandex_compute_instance.kibana.boot_disk.0.disk_id}"]
+  disk_ids = [
+    yandex_compute_instance.bastion.boot_disk[0].disk_id,
+    yandex_compute_instance.nginx-web-1.boot_disk[0].disk_id,
+    yandex_compute_instance.nginx-web-2.boot_disk[0].disk_id,
+    yandex_compute_instance.zabbix.boot_disk[0].disk_id,
+    yandex_compute_instance.elasticsearch.boot_disk[0].disk_id,
+    yandex_compute_instance.kibana.boot_disk[0].disk_id
+  ]
 }
+
 ```
 
 ### 3. Запуксаю terraform playbook.
@@ -745,33 +735,37 @@ terraform apply -auto-approve -parallelism=1
 
 ![terraform apply](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform%20apply.png)
 
+![terraform_apply2](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform_apply%202.png)
+
 Проверяю что установилось
 
-![terraform state list](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform%20state%20list.png)
+![terraform state list](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/terraform_state_list.png)
 
-![backend](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D1%8B%20%D0%B1%D1%8D%D0%BA%D0%B5%D0%BD%D0%B4%D0%B0.png)
+![backend](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/backend.png)
 
 ![router](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D1%80%D0%BE%D1%83%D1%82%D0%B5%D1%80.png)
 
-![balancer](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B1%D0%B0%D0%BB%D0%B0%D0%BD%D1%81%D0%B8%D1%80%D0%BE%D0%B2%D1%89%D0%B8%D0%BA.png)
+![balancer](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/balancer.png)
 
-![ВМ](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%D1%8B.png)
+![ВМ](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%92%D0%9C.png)
 
-![snapshot](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/snapshot-diplom.png)
+![snapshot_time](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/snapshot_diplom.png)
 
-![gateway](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D1%88%D0%BB%D1%8E%D0%B7%D1%8B.png)
+![snapshot](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/snapshot_disks.png)
 
-![networks](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%BE%D0%B1%D0%BB%D0%B0%D1%87%D0%BD%D1%8B%D0%B5%20%D1%81%D0%B5%D1%82%D0%B8.png)
+![gateway](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/gateway.png)
 
-![route_table](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D1%82%D0%B0%D0%B1%D0%BB%D0%B8%D1%86%D0%B0%20%D0%BC%D0%B0%D1%80%D1%88%D1%80%D1%83%D1%82%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%B8.png)
+![networks](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/network.png)
 
-![sec_group](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D1%8B%20%D0%B1%D0%B5%D0%B7%D0%BE%D0%BF%D0%B0%D1%81%D0%BD%D0%BE%D1%81%D1%82%D0%B8.png)
+![route_table](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/route_table.png)
 
-![disks](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B4%D0%B8%D1%81%D0%BA%D0%B8.png)
+![sec_group](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/secure_group.png)
 
-![target_group](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D1%86%D0%B5%D0%BB%D0%B5%D0%B2%D1%8B%D0%B5%20%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D1%8B.png)
+![disks](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/disks.png)
 
-![dashboard](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/%D0%B4%D0%B0%D1%88%D0%B1%D0%BE%D1%80%D0%B4%20YandexCloud.png)
+![target_group](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/target.png)
+
+![dashboard](https://github.com/kirill-kornienko/My_Diplom/blob/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform/dashboard.png)
 
 
 Далее следует второй этап выполнения работы [установка и подготовка Ansible. Установка и настройка сервисов]( https://github.com/kirill-kornienko/My_Diplom/tree/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2)
