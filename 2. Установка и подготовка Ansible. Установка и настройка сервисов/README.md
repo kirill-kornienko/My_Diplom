@@ -458,7 +458,64 @@ nano index.nginx-ubuntu.html
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дипломная работа по профессии «Системный администратор»</title>
-        <!-- <link rel="stylesheet" href="./styles/style.css"> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        h1 { margin: 0; font-size: 28px; }
+        h4 { margin: 10px 0 0; font-weight: normal; }
+        main {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+        }
+        ol { list-style-type: none; padding: 0; }
+        li {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        li:hover { background-color: #d5dbdb; }
+        a {
+            text-decoration: none;
+            color: #2980b9;
+            font-weight: bold;
+            display: block;
+        }
+        a:hover { text-decoration: underline; }
+        .description {
+            font-size: 14px;
+            color: #555;
+            margin-top: 5px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #777;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -471,16 +528,32 @@ nano index.nginx-ubuntu.html
         <article>
             <section>
                 <h3>Дипломная работа состоит из трех этапов:</h3>
-                <nav>
-                    <ol>
-                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/[1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1>](https://github.com/kirill-kornienko/My_Diplom/tree/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform)>
-                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/[2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0>](https://github.com/kirill-kornienko/My_Diplom/tree/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2)>
-                        <li><a href="https://github.com/kirill-kornienko/My_Diplom/blob/main/[3.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0](https://github.com/kirill-kornienko/My_Diplom/tree/main/3.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D1%80%D0%B5%D1%81%D1%83%D1%80%D1%81%D0%BE%D0%B2%20%D0%B8%20%D0%B2%D1%8B%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%B7%D0%B0%D0%B4%D0%B0%D1%87)>
-                    </ol>
-                </nav>
+                <ol>
+                    <li>
+                        <a href="https://github.com/kirill-kornienko/My_Diplom/tree/main/1.%20%D0%A0%D0%B0%D0%B7%D0%B2%D0%B5%D1%80%D1%82%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85%20%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%20%D1%81%20%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E%20Terraform">
+                            📁 1. Развертывание виртуальных машин с помощью Terraform
+                        </a>
+                        <div class="description">Создание инфраструктуры в Yandex Cloud: VPC, подсети, ВМ, security groups, балансировщик.</div>
+                    </li>
+                    <li>
+                        <a href="https://github.com/kirill-kornienko/My_Diplom/tree/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2">
+                            📁 2. Установка и подготовка Ansible. Установка сервисов
+                        </a>
+                        <div class="description">Настройка nginx, Zabbix, Elasticsearch, Kibana, Filebeat с помощью Ansible.</div>
+                    </li>
+                    <li>
+                        <a href="https://github.com/kirill-kornienko/My_Diplom/tree/main/3.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D1%80%D0%B5%D1%81%D1%83%D1%80%D1%81%D0%BE%D0%B2%20%D0%B8%20%D0%B2%D1%8B%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%B7%D0%B0%D0%B4%D0%B0%D1%87">
+                            📁 3. Проверка ресурсов и выполнение задач
+                        </a>
+                        <div class="description">Финальная проверка, настройка дашбордов Zabbix, Kibana, резервное копирование.</div>
+                    </li>
+                </ol>
             </section>
         </article>
     </main>
+    <footer>
+        <p>Дипломная работа по профессии «Системный администратор» | Кирилл Корниенко | 2026</p>
+    </footer>
 </body>
 </html>
 
