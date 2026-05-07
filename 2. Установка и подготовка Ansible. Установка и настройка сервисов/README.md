@@ -66,7 +66,7 @@ ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 nano playbook-nginx-web.yaml
 ```
 
-```yml
+```yaml
 ---
 - name: "install nginx --> replacing a file index.nginx-ubuntu.html --> restart nginx"
   hosts: nginx-web
@@ -100,7 +100,7 @@ nano playbook-nginx-web.yaml
 nano playbook-zabbix.yaml
 ```
 
-```
+```yaml
 ---
 - name: "Install Zabbix 6.0 on Ubuntu 22.04 with PostgreSQL 14"
   hosts: zabbix
@@ -175,7 +175,7 @@ nano playbook-zabbix.yaml
 nano playbook-zabbix-agent.yaml
 ```
 
-```
+```yaml
 ---
 - name: "Install Zabbix Agent on Ubuntu"
   hosts: all
@@ -236,7 +236,7 @@ nano playbook-zabbix-agent.yaml
 nano playbook-elasticsearch.yaml
 ```
 
-```
+```yaml
 ---
 - name: "install elasticsearch on Ubuntu"
   hosts: elasticsearch
@@ -297,7 +297,7 @@ nano playbook-elasticsearch.yaml
 nano playbook-kibana.yaml
 ```
 
-```
+```yaml
 ---
 - name: "install kibana on Ubuntu"
   hosts: kibana
@@ -349,7 +349,7 @@ nano playbook-kibana.yaml
 nano playbook-filebeat.yaml
 ```
 
-```
+```yaml
 ---
 - name: "install filebeat for nginx-web-1"
   hosts: nginx-web-1
@@ -401,7 +401,7 @@ nano playbook-filebeat.yaml
 nano playbook-filebeat2.yaml
 ```
 
-```
+```yaml
 ---
 - name: "install filebeat for nginx-web-2"
   hosts: nginx-web-2
@@ -451,7 +451,7 @@ nano playbook-filebeat2.yaml
 ```
 nano index.nginx-ubuntu.html
 ```
-```
+```bash
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -491,7 +491,7 @@ nano index.nginx-ubuntu.html
 nano elasticsearch.yml
 ```
 
-```
+```yaml
 # ======================== Elasticsearch Configuration =========================
 luster.name: kirill-diplom
 node.name: node-1
@@ -508,7 +508,7 @@ xpack.security.transport.ssl.enabled: false
 nano kibana.yml
 ```
 
-```
+```yaml
 #============================= Kibana =========================================
 server.port: 5601
 server.host: 0.0.0.0
@@ -521,7 +521,7 @@ elasticsearch.hosts: ["http://192.168.10.4:9200"]
 nano filebeat.yml
 ```
 
-```
+```yaml
 #===================== Filebeat Configuration =====================
 ilebeat.inputs:
 - type: log
@@ -544,8 +544,8 @@ processors:
 nano filebeat2.yml
 ```
 
-```
-#=================== Filebeat Configuration =======================
+```yaml
+#=================== Filebeat2 Configuration =======================
 ilebeat.inputs:
 - type: log
   enabled: true
@@ -567,269 +567,39 @@ processors:
 
 Устанавливаю сервер nginx на две ВМ. Заменаяю стандартный файл на `index.nginx-ubuntu.html`
 
+![ansible_nginx](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook%20nginx.png)
+
 
 ### Мониторинг. Zabbix. Zabbix-agent.
 
 Разворачива Zabbix
 
-```
----
-- name: "Install Zabbix 6.0 on Ubuntu 22.04 with PostgreSQL 14"
-  hosts: zabbix
-  become: true
-
-  tasks:
-    - name: "1/9 Install acl and python3-psycopg2"
-      apt:
-        name:
-          - acl
-          - python3-psycopg2
-        state: present
-
-    - name: "2/9 Update apt cache"
-      apt:
-        update_cache: yes
-
-    - name: "3/9 Install PostgreSQL 14 and contrib"
-      apt:
-        name:
-          - postgresql-14
-          - postgresql-contrib-14
-        state: present
-
-    - name: "4/9 Download Zabbix release package"
-      get_url:
-        url: https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_6.0+ubuntu22.04_all.deb
-        dest: /home/kirill/zabbix-release.deb
-
-    - name: "5/9 Install Zabbix release package"
-      apt:
-        deb: /home/kirill/zabbix-release.deb
-
-    - name: "6/9 Update apt after adding repo"
-      apt:
-        update_cache: yes
-
-    - name: "7/9 Install Zabbix components"
-      apt:
-        name:
-          - zabbix-server-pgsql
-          - zabbix-frontend-php
-          - php8.1-pgsql
-          - zabbix-apache-conf
-          - zabbix-sql-scripts
-          - zabbix-agent
-        state: present
-
-    - name: "8/9 Create PostgreSQL user and database"
-      shell: |
-        sudo -u postgres psql -c "CREATE USER zabbix WITH PASSWORD '123456789';" || true
-        sudo -u postgres psql -c "CREATE DATABASE zabbix OWNER zabbix;" || true
-      changed_when: false
-
-    - name: "9/9 Import Zabbix schema"
-      shell: |
-        zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u zabbix psql zabbix || true
-      changed_when: false
-
-    - name: "10/9 Configure DB password and restart services"
-      shell: |
-        sed -i 's/# DBPassword=/DBPassword=123456789/g' /etc/zabbix/zabbix_server.conf
-        systemctl restart zabbix-server zabbix-agent apache2
-        systemctl enable zabbix-server zabbix-agent apache2
-      changed_when: false
-
-```
+![zabbix](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-zabbix1.png)
+![zabbix2](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-zabbix2.png)
 
 На каждую ВМ устанавливаю Zabbix Agent
 
-```
----
-- name: "Install Zabbix Agent on Ubuntu"
-  hosts: all
-  become: true
+![zabbix-agent](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-zabbix-agent1.png)
 
-  tasks:
-    - name: "1/7 Update apt cache"
-      apt:
-        update_cache: yes
+![zabbix-agent2](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-zabbix-agent2.png)
 
-    - name: "2/7 Install prerequisites (wget)"
-      apt:
-        name: wget
-        state: present
 
-    - name: "3/7 Download Zabbix release package (force)"
-      shell: |
-        wget -O /home/kirill/zabbix-release.deb https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_6.0+ubuntu22.04_all.deb
-
-    - name: "4/7 Verify that file exists"
-      stat:
-        path: /home/kirill/zabbix-release.deb
-      register: deb_file
-
-    - name: "5/7 Install Zabbix release package"
-      apt:
-        deb: "/home/kirill/zabbix-release.deb"
-      when: deb_file.stat.exists
-
-    - name: "6/7 Update apt after adding repo"
-      apt:
-        update_cache: yes
-
-    - name: "7/7 Install Zabbix agent"
-      apt:
-        name: zabbix-agent
-        state: latest
-
-    - name: "8/7 Configure Zabbix agent (set Server IP)"
-      replace:
-        path: /etc/zabbix/zabbix_agentd.conf
-        regexp: '^Server=127.0.0.1'
-        replace: 'Server=192.168.30.4'
-      notify: restart zabbix-agent
-
-  handlers:
-    - name: restart zabbix-agent
-      systemd:
-        name: zabbix-agent
-        state: restarted
-        enabled: yes
-
-```
 ### Логи. Elasticsearch. Kibana. Filebeat.
 
 Разворачиваю на ВМ Elasticsearch
 
-```
----
-- name: "download and install elasticsearch on Ubuntu 24"
-  hosts: elasticsearch
-  become: true
-
-  tasks:
-  - name: "1/5 install gnupg and apt-transport-https"
-    apt:
-      name:
-        - gnupg
-        - apt-transport-https
-      state: present
-
-  - name: "2/5 download elasticsearch 7.17.9 deb package"
-    get_url:
-      url: https://mirror.yandex.ru/mirrors/elastic/7/pool/main/e/elasticsearch/elasticsearch-7.17.9-amd64.deb
-      dest: "/home/kirill/elasticsearch-7.17.9-amd64.deb"
-
-  - name: "3/5 install elasticsearch from deb"
-    apt:
-      deb: /home/kirill/elasticsearch-7.17.9-amd64.deb
-
-  - name: "4/5 copy custom elasticsearch.yml configuration"
-    copy:
-      src: /root/elasticsearch.yml
-      dest: /etc/elasticsearch/elasticsearch.yml
-      owner: root
-      group: elasticsearch
-      mode: '0644'
-    notify: restart elasticsearch
-
-  - name: "5/5 enable and start elasticsearch"
-    systemd:
-      name: elasticsearch
-      enabled: yes
-      state: started
-
-  handlers:
-    - name: restart elasticsearch
-      systemd:
-        name: elasticsearch
-        state: restarted
-```
+![elasticsearch](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-elastic.png)
 
 Разворачиваю на другой ВМ Kibana, конфигурирую соединение с Elasticsearch
 
-```
----
-- name: "download and install kibana on Ubuntu 24"
-  hosts: kibana
-  become: true
-
-  tasks:
-  - name: "1/5 install gnupg and apt-transport-https"
-    apt:
-      name:
-        - gnupg
-        - apt-transport-https
-      state: present
-
-  - name: "2/5 download kibana 7.17.9 deb package"
-    get_url:
-      url: https://mirror.yandex.ru/mirrors/elastic/7/pool/main/k/kibana/kibana-7.17.9-amd64.deb
-      dest: "/home/kirill/kibana-7.17.9-amd64.deb"
-
-  - name: "3/5 install kibana from deb"
-    apt:
-      deb: /home/kirill/kibana-7.17.9-amd64.deb
-
-  - name: "4/5 copy custom kibana.yml configuration"
-    copy:
-      src: /root/kibana.yml
-      dest: /etc/kibana/kibana.yml
-      owner: root
-      group: kibana
-      mode: '0644'
-    notify: restart kibana
-
-  - name: "5/5 enable and start kibana"
-    systemd:
-      name: kibana
-      enabled: yes
-      state: started
-
-  handlers:
-    - name: restart kibana
-      systemd:
-        name: kibana
-        state: restarted
-```
+![kibana](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-kibana.png)
 
 Устанавливаю Filebeat в ВМ к веб-серверам, настраиваю на отправку access.log, error.log nginx в Elasticsearch.
 
-```
-###################### Filebeat Configuration #########################
-filebeat.inputs:
-- type: log
-  enabled: true
-  paths:
-    - /var/log/nginx/access.log
-    - /var/log/nginx/error.log
+![filebeat](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-filebeat.png)
 
-output.elasticsearch:
-  hosts: ["192.168.10.4:9200"]
-  index: "nginx-web-1"
+![filebeat2](https://github.com/kirill-kornienko/My_Diplom/blob/main/2.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B0%20Ansible.%20%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%20%D0%B8%20%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%BE%D0%B2/ansible-playbook-filebeat2.png)
 
-processors:
-  - drop_fields:
-      fields: ["beat", "input_type", "prospector", "input", "host", "agent", "ecs"]
-```
-
-```
-###################### Filebeat Configuration #########################
-filebeat.inputs:
-- type: log
-  enabled: true
-  paths:
-    - /var/log/nginx/access.log
-    - /var/log/nginx/error.log
-
-output.elasticsearch:
-  hosts: ["192.168.10.4:9200"]
-  index: "nginx-web-2"
-
-processors:
-  - drop_fields:
-      fields: ["beat", "input_type", "prospector", "input", "host", "agent", "ecs"]
-```
 ### Все сервисы через ansible развернуты.
 
 Далее третий этап дипломной паботы [Ghjdthrf ресурсов и выполнение задач](https://github.com/kirill-kornienko/My_Diplom/tree/main/3.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D1%80%D0%B5%D1%81%D1%83%D1%80%D1%81%D0%BE%D0%B2%20%D0%B8%20%D0%B2%D1%8B%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%B7%D0%B0%D0%B4%D0%B0%D1%87)
