@@ -31,7 +31,7 @@ nano hosts
 
 `hosts` настраиваю подключение к ресурсам через ProxyCommand.
 
-```
+```bash
 [nginx-web]
 nginx-web-1
 nginx-web-2
@@ -66,7 +66,7 @@ ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q kirill@81.26.190.38"'
 nano playbook-nginx-web.yaml
 ```
 
-```
+```yaml
 ---
 - name: "install nginx --> replacing a file index.nginx-ubuntu.html --> restart nginx"
   hosts: nginx-web
