@@ -496,6 +496,19 @@ resource "yandex_vpc_security_group" "zabbix-security" {
     v4_cidr_blocks = ["192.168.10.0/24","192.168.20.0/24","192.168.30.0/24"]
     port           = 10051
   }
+ingress {
+    protocol       = "TCP"
+    description    = "IN to 10050 from local ip"
+    v4_cidr_blocks = ["192.168.10.0/24","192.168.20.0/24","192.168.30.0/24"]
+    port           = 10050
+  }
+
+    egress {
+    protocol       = "TCP"
+    description    = "OUT from 10050 port to local ip"
+    v4_cidr_blocks = ["192.168.10.0/24","192.168.20.0/24","192.168.30.0/24"]
+    port           = 10050
+  }
 }
 
 resource "yandex_vpc_security_group" "elasticsearch-security" {
