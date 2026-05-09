@@ -1,0 +1,42 @@
+---
+- name: "install kibana on Ubuntu"
+  hosts: kibana
+  become: true
+
+  tasks:
+    - name: "1/5 install prerequisites"
+      apt:
+        name:
+          - gnupg
+          - apt-transport-https
+        state: present
+
+    - name: "2/5 download kibana 7.17.9 deb package"
+      get_url:
+        url: https://mirror.yandex.ru/mirrors/elastic/7/pool/main/k/kibana/kibana-7.17.9-amd64.deb
+        dest: "/home/kirill/kibana-7.17.9-amd64.deb"
+
+    - name: "3/5 install kibana from deb"
+      apt:
+        deb: "/home/kirill/kibana-7.17.9-amd64.deb"
+
+    - name: "4/5 copy kibana.yml configuration"
+      copy:
+        src: /home/kirill/kibana.yml
+        dest: /etc/kibana/kibana.yml
+        owner: root
+        group: kibana
+        mode: '0644'
+      notify: restart kibana
+
+    - name: "5/5 enable and start kibana"
+      systemd:
+        name: kibana
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart kibana
+      systemd:
+        name: kibana
+        state: restarted

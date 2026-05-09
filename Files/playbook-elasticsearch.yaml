@@ -1,0 +1,51 @@
+---
+- name: "install elasticsearch on Ubuntu"
+  hosts: elasticsearch
+  become: true
+
+  tasks:
+    - name: "1/6 install Java 17 and prerequisites"
+      apt:
+        name:
+          - gnupg
+          - apt-transport-https
+          - openjdk-17-jre-headless
+        state: present
+
+    - name: "2/6 download elasticsearch 7.17.9 deb package"
+      shell: |
+        mkdir -p /home/kirill
+        wget -O /home/kirill/elasticsearch-7.17.9-amd64.deb https://mirror.yandex.ru/mirrors/elastic/7/pool/main/e/elasticsearch/elasticsearch-7.17.9-amd64.deb
+      args:
+        creates: /home/kirill/elasticsearch-7.17.9-amd64.deb
+
+    - name: "3/6 verify that file exists"
+      stat:
+        path: /home/kirill/elasticsearch-7.17.9-amd64.deb
+      register: deb_file
+
+    - name: "4/6 install elasticsearch from deb"
+      apt:
+        deb: /home/kirill/elasticsearch-7.17.9-amd64.deb
+      when: deb_file.stat.exists
+
+    - name: "5/6 copy elasticsearch.yml"
+      copy:
+        src: /home/kirill/elasticsearch.yml
+        dest: /etc/elasticsearch/elasticsearch.yml
+        owner: root
+        group: elasticsearch
+        mode: '0644'
+      notify: restart elasticsearch
+
+    - name: "6/6 enable and start elasticsearch"
+      systemd:
+        name: elasticsearch
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart elasticsearch
+      systemd:
+        name: elasticsearch
+        state: restarted

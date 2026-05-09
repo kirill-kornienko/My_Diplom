@@ -1,0 +1,14 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+    - /var/log/nginx/error.log
+
+output.elasticsearch:
+  hosts: ["192.168.10.4:9200"]
+  index: "nginx-web-1"
+
+processors:
+  - drop_fields:
+      fields: ["beat", "input_type", "host", "agent"]

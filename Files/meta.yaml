@@ -1,0 +1,9 @@
+
+#cloud-config
+users:
+  - name: kirill
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIARZISECah6zKbQtdsx9NBXTDOLJ7/ztu2650w05ahLR root@kirill-VirtualBox
